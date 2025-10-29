@@ -356,3 +356,4 @@ export default function Index({loaderData}: Route.ComponentProps) {
    directly except in rare edge cases.
 6. Run typegen + typecheck and lint (e.g., bun run typecheck); fix issues. Summarize the change and suggest the next
    increment.
+7. Always follow The Grug Brained Developer Philosophy when writing code.
