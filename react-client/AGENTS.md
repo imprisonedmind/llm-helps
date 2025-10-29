@@ -29,7 +29,7 @@ Dev/Prod Rule: Use Bun for local development only. Use npm for production (CI/bu
 
 ## Project Structure (Baseline)
 
-This section is project-agnostic; this repository defines the baseline conventions.
+This section defines the project-agnostic structure that we follow.
 
 ```
 app/
