@@ -93,27 +93,27 @@ import {cn} from "~/lib/utils"
 
 // import { useExample } from "~/lib/context/example-provider" // provider example (if needed)
 interface ExampleCardProps {
-    title: string
-    subtitle?: string
-    tone?: "neutral" | "positive" | "warning" | "danger"
-    className?: string
+  title: string
+  subtitle?: string
+  tone?: "neutral" | "positive" | "warning" | "danger"
+  className?: string
 }
 
 export default function ExampleCard({title, subtitle, tone = "neutral", className}: ExampleCardProps) {
-    // const { valueFromProvider } = useExample() // if needed, read from provider (no fetching here)
-    // Precompute values (no helper calls inside JSX)
-    const label = subtitle ?? ""
-    const containerClasses = cn("card p-3", className);
-    const toneClass = tone === "positive" ? "text-green-400" : tone === "warning" ? "text-yellow-400" : tone === "danger" ? "text-red-400" : "text-muted-foreground";
-    // Always white-space between consts and the return block
+  // const { valueFromProvider } = useExample() // if needed, read from provider (no fetching here)
+  // Precompute values (no helper calls inside JSX)
+  const label = subtitle ?? ""
+  const containerClasses = cn("card p-3", className);
+  const toneClass = tone === "positive" ? "text-green-400" : tone === "warning" ? "text-yellow-400" : tone === "danger" ? "text-red-400" : "text-muted-foreground";
+  // Always white-space between consts and the return block
 
-    return (
-        <div className={containerClasses}>
-            <div className="font-medium truncate">{title}</div>
-            {/* this space is important and always present between new HTML tags */}
-            {label && <div className={cn("text-xs truncate", toneClass)}>{label}</div>}
-        </div>
-    );
+  return (
+    <div className={containerClasses}>
+      <div className="font-medium truncate">{title}</div>
+      {/* this space is important and always present between new HTML tags */}
+      {label && <div className={cn("text-xs truncate", toneClass)}>{label}</div>}
+    </div>
+  );
 }
 ```
 
@@ -225,39 +225,39 @@ export const client = ApiClient.getInstance({url: import.meta.env.API_BASE_URL})
 import type {ApiClient} from './client'
 
 export interface User {
-    id: string;
-    name: string
+  id: string;
+  name: string
 }
 
 export default class UsersService {
-    private client: ApiClient;
+  private client: ApiClient;
 
-    constructor(client: ApiClient) {
-        this.client = client
-    }
+  constructor(client: ApiClient) {
+    this.client = client
+  }
 
-    // Read operations return typed JSON
-    list(): Promise<User[]> {
-        return this.client.get<User[]>('users/')
-    }
+  // Read operations return typed JSON
+  list(): Promise<User[]> {
+    return this.client.get<User[]>('users/')
+  }
 
-    getById(id: string): Promise<User> {
-        return this.client.get<User>(`users/${id}`)
-    }
+  getById(id: string): Promise<User> {
+    return this.client.get<User>(`users/${id}`)
+  }
 
-    // Mutations return Response; check ok and parse server message on error
-    async create(input: { name: string }): Promise<User> {
-        const resp = await this.client.post('users/', input);
-        if (!resp.ok) {
-            try {
-                const data = await resp.json();
-                throw new Error((data?.error || data?.detail) || resp.statusText)
-            } catch {
-                throw new Error(resp.statusText)
-            }
-        }
-        return resp.json() as Promise<User>;
+  // Mutations return Response; check ok and parse server message on error
+  async create(input: { name: string }): Promise<User> {
+    const resp = await this.client.post('users/', input);
+    if (!resp.ok) {
+      try {
+        const data = await resp.json();
+        throw new Error((data?.error || data?.detail) || resp.statusText)
+      } catch {
+        throw new Error(resp.statusText)
+      }
     }
+    return resp.json() as Promise<User>;
+  }
 }
 ```
 
@@ -282,32 +282,32 @@ import {Await} from "react-router";
 import {client} from "~/lib/api-client";
 
 export async function clientLoader({request}: Route.ClientLoaderArgs) {
-    const url = new URL(request.url);
-    const page = Number(url.searchParams.get("page") || "1");
-    // non-blocking: return the Promise directly
-    const items = client.example.list({page});
-    return {items};
+  const url = new URL(request.url);
+  const page = Number(url.searchParams.get("page") || "1");
+  // non-blocking: return the Promise directly
+  const items = client.example.list({page});
+  return {items};
 }
 
 export default function Index({loaderData}: Route.ComponentProps) {
-    const {items} = loaderData;
-    // always white-space between consts and return block
+  const {items} = loaderData;
+  // always white-space between consts and return block
 
-    return (
-        <div className="p-4">
-            <Suspense fallback={<div className="muted">Loading…</div>}>
-                <Await resolve={items} errorElement={<div className="muted">Failed to load.</div>}>
-                    {(page: { results: Array<{ id: string; name: string }> }) => (
-                        <ul className="space-y-2">
-                            {page.results.map((it) => (
-                                <li key={it.id} className="card p-3">{it.name}</li>
-                            ))}
-                        </ul>
-                    )}
-                </Await>
-            </Suspense>
-        </div>
-    );
+  return (
+    <div className="p-4">
+      <Suspense fallback={<div className="muted">Loading…</div>}>
+        <Await resolve={items} errorElement={<div className="muted">Failed to load.</div>}>
+          {(page: { results: Array<{ id: string; name: string }> }) => (
+            <ul className="space-y-2">
+              {page.results.map((it) => (
+                <li key={it.id} className="card p-3">{it.name}</li>
+              ))}
+            </ul>
+          )}
+        </Await>
+      </Suspense>
+    </div>
+  );
 }
 ```
 
