@@ -1,141 +1,127 @@
-# AGENTS.md — Django Projects (Postgres + Mongo + OpenAI Views)
+This file is symlinked and shared across multiple projects; always treat it as a symlink.
 
-**Purpose:** This file tells the coding agent how to work inside *any* of my Django projects. Follow it verbatim. Be concise and opinionated, ask clarifying questions first, and default to safe changes.
+# AGENTS.md — Django Backend (uv + DRF + Postgres + Mongo + Huey)
+
+Purpose: This guide tells agents how to work in any Django backend following our baseline patterns. Be concise, opinionated, and ask clarifying questions first.
 
 ## Startup Checklist (Agent)
 - Read this file fully.
-- Detect package manager and env: `pip-compile`/`pip`, `uv`, or `poetry`. Prefer **uv** if `pyproject.toml` exists, else `pip` with `requirements.txt`.
-- Ask: **“What should we work on today?”** Then propose a short plan (bulleted), get confirmation, and execute.
+- Use uv with `pyproject.toml` and `uv.lock` (pip/requirements are not used).
+- Ensure a local `.env` exists at the project root (values provided via your secret manager or a template).
+- Ask: “What should we work on today?” Then propose a short plan and confirm.
 
-## Tech Context (Typical Stack)
-- **Django** (or Django + DRF) on **PostgreSQL** (primary) + **MongoDB** (auxiliary/log & doc store).
-- **OpenAI REST API** views for data fetching/parsing; heavy/slow work goes to **Celery**.
-- Infra assumptions: `.env`-based settings, **pre-commit** with `ruff`, `black`, `isort`, `mypy`, **pytest**.
+## Commands
+
+- Environment
+  - Create venv + install all groups: `uv venv && uv sync --all-groups`
+  - `.env` at the project root is read via python‑dotenv; keep it present for all runs
+- Run
+  - Dev server: `uv run python manage.py runserver <port>`
+  - Migrations: `uv run python manage.py makemigrations && uv run python manage.py migrate`
+- Tests
+  - Django tests: `uv run python manage.py test`
+  - Coverage (all suites): `uv run coverage run manage.py test`
+  - Coverage report: `uv run coverage report -m` and `uv run coverage html`
+- Lint
+  - Ruff (lint + fix): `uv run ruff check . --fix`
+- Background Tasks
+  - Huey worker: `uv run python manage.py run_huey --workers <N>`
+  - Start workers only on production servers; do not run workers locally.
+- Introspection
+  - GraphQL schema dump (if present): `uv run python manage.py graphql_schema --schema <module>.schema --out schema.(json|graphql)`
 
 ---
 
-## Commands (Agent should use when relevant)
-- **Setup:** `uv sync` (preferred) or `pip install -r requirements.txt`
-- **Fmt/Lint:** `ruff check . --fix`, `black .`, `isort .`, `mypy .`
-- **Tests:** `pytest -q`
-- **Run:** `python manage.py runserver`
-- **Migrate:** `python manage.py makemigrations && python manage.py migrate`
-- **Celery:** `celery -A config worker -l INFO`
-- **OpenAPI docs (if DRF Spectacular):** `/api/schema/` & `/api/docs/`
-
-> If a command is missing, create/update the appropriate config (e.g., add `pyproject.toml` [ruff/black/isort], `mypy.ini`, `pytest.ini`, `pre-commit-config.yaml`).
+## Tech Context (Baseline)
+- Django with Django REST Framework for REST APIs.
+- PostgreSQL as the primary datastore.
+- MongoDB for logs/documents or large, non‑relational payloads (via `pymongo`).
+- Settings from `.env` (loaded by python‑dotenv).
+- ASGI served in production via Gunicorn with Uvicorn worker.
+- Background jobs with Huey; started via `manage.py run_huey`.
+- API versioning via DRF namespace/versioning.
+ - GraphQL may exist historically; it is being deprecated. Do not add new GraphQL. Prefer simple REST views and migrate GraphQL features to REST when touching related areas.
 
 ---
 
 ## Project Structure (Baseline)
 ```
 project_root/
-  config/                 # settings/, urls.py, asgi/wsgi.py
-  apps/
-    <domain_app>/         # models.py, admin.py, views.py, tasks.py, serializers.py, urls.py
-  services/               # domain services, OpenAI clients, adapters
-  db/
-    mongo_client.py       # pymongo client factory, typed helpers
-  tests/                  # pytest tests
-  scripts/                # one-off utilities
-  .env, .env.example
+  manage.py                    # Django entrypoint
+  <project_module>/            # settings.py, urls.py, asgi.py, wsgi.py
+  <app_one>/                   # Django app (domain)
+    migrations/
+    api/<vN>/                  # REST API modules (DRF) when present
+    graphql/                   # Legacy GraphQL modules (being deprecated)
+    management/commands/       # custom manage.py commands
+    templates/                 # app templates (e.g., emails)
+    tasks.py                   # background tasks (Huey) when present
+    tests/                     # tests colocated (when used)
+  <app_two>/
+  portal/                      # optional embedded client app (built output checked in)
+  http_client/                 # IDE HTTP client requests + env templates
+  .infra/                      # production configs (systemd, nginx) and helper scripts
+  .env                         # runtime configuration (python-dotenv)
+  .template.env                # template for .env values
+  pyproject.toml
+  uv.lock
 ```
-- **Separation:** Keep business logic in `services/`; keep views thin; tests live near code or under `tests/` by feature.
-- **Settings split:** `config/settings/{base.py,dev.py,prod.py}`. Load with `DJANGO_SETTINGS_MODULE=config.settings.dev` etc.
-- **ENV management:** Use `django-environ` or `pydantic-settings`. Provide `.env.example` with all required vars.
+Conventions:
+- Keep views thin; put business logic in service modules or helpers inside each app.
+- DRF: structure REST APIs under `api/<version>/` within each app; define serializers for all inputs/outputs.
+- Embedded client: if a static client build is included (e.g., under `portal/`), add its build paths to Django `TEMPLATES` and `STATICFILES_DIRS`.
+- Avoid cross‑DB transactions; treat Postgres and Mongo as separate boundaries.
 
 ---
 
-## Databases
-- **Postgres**: The **source of truth** for transactional data. Use `psycopg[binary,pool]` / Django ORM.
-- **Mongo**: For *append-only logs, cached large docs, model outputs*. Use `pymongo` (no djongo). Do **not** mix relational invariants into Mongo.
-- **Transactions:** Never span Postgres + Mongo. Treat cross-DB operations as *sagas*; persist steps idempotently with retries.
-- **Migrations:** Every Django model change → migration. For Mongo, evolve collections via idempotent scripts in `scripts/` and document in Git.
-
----
-
-## OpenAI REST API Views
-- Use `httpx` (async preferred) or `requests` for REST calls. **Never** embed API keys in code; read from settings.
-- Wrap OpenAI calls behind `services/openai_client.py` with:
-  - **Retry/backoff** (e.g., 429/5xx with jitter).
-  - **Timeouts** (read+connect ≤ 30s).
-  - **Telemetry** (duration, model, tokens if returned).
-  - **Guardrails**: validate response JSON with **Pydantic** schemas before use.
-- **Views:** Prefer DRF `APIView`/`GenericViewSet` with explicit request/response serializers.
-- **Async:** Use async views cautiously (DB/ORM is sync). Offload heavy LLM work to **Celery**; return 202 + task id if long-running.
-- **Security:** Enable CORS only for allowed origins; enforce auth/permissions; rate-limit endpoints that hit OpenAI.
-- **Privacy:** Never log full prompts/responses that may contain PII; store redacted summaries in Mongo if needed.
-
-**Example skeleton** (sync, DRF):
-```python
-# apps/ai/views.py
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from .serializers import PromptIn, AiOut
-from services.openai_client import complete_safely
-
-class SummarizeView(APIView):
-    def post(self, request):
-        data = PromptIn(data=request.data); data.is_valid(raise_exception=True)
-        result = complete_safely(prompt=data.validated_data["prompt"])
-        out = AiOut.model_validate(result)  # Pydantic for strictness
-        return Response(out.model_dump(), status=status.HTTP_200_OK)
-```
-> Add robust error mapping to HTTP (400 for invalid input, 502 for upstream issues, 429 for rate limits).
-
----
-
-## Services & Boundaries
-- **No ORMs in views.** Views call **services**; services coordinate repositories/clients.
-- **Idempotency:** For endpoints that may be retried (network), support `Idempotency-Key` header.
-- **Typing:** Use `from __future__ import annotations`; type *everything*. Run `mypy` in CI.
-- **Configuration:** All dynamic values via settings/env; pass into services at init (DI).
+## Patterns & Practices
+- REST‑first: implement simple REST views with DRF (`APIView`, generics, or viewsets). Avoid adding GraphQL; migrate legacy GraphQL endpoints to REST incrementally.
+- Views: thin controllers. Heavy work in services/helpers; background work in Huey tasks.
+- DRF: explicit serializers and viewsets/generics; paginate lists; validate query params.
+- Transactions: use atomic blocks for relational changes; do not mix Postgres invariants with Mongo writes.
+- Settings: all dynamic values via environment variables; keep a template with all required keys.
+- Security: strict CORS allowlists; protect unsafe methods with CSRF where applicable; never log secrets/PII.
+- ASGI: `asgi.py` is the production entrypoint; keep WSGI for compatibility where needed.
 
 ---
 
 ## Testing Policy
-- **pytest** + `pytest-django`; factories via `factory_boy`; `freezegun` for time.
-- **Unit tests** for services/serializers; **API tests** for views; **integration** for Celery flows.
-- **Golden tests** for model outputs when reasonable (store sample input→output fixtures, not raw PII).
-- **Mongo tests** use a temporary DB/collection suffix; clean up per test session.
-- Every bug fix must add/adjust a test.
+- Runner: use Django's built-in test runner (`uv run python manage.py test`). Do not use pytest.
+- Structure: place tests under each app, e.g. `<app>/tests/` and `<app>/api/<vN>/tests/`. Management command tests live under `<app>/management/commands/tests/`.
+- API tests: use DRF `APITestCase` with `APIClient` for integration-style tests; use `APIRequestFactory` when calling views directly.
+- Unit tests: use `django.test.TestCase` for ORM-backed logic. Prefer `factory_boy` factories (see `<app>/factories.py`) with `faker` for data.
+- Mocking: use `unittest.mock.patch` for external dependencies (HTTP clients, MongoDB). Tests must not perform real network or Mongo calls.
+- Coverage: `uv run coverage run manage.py test` then `uv run coverage report -m` or `uv run coverage html`. Coverage data is stored in `.coverage/` as configured.
+- Background tasks: do not start workers in tests. Call task functions directly or mock them; assert side effects explicitly.
+- Policy: every bug fix adds or updates a corresponding test.
 
 ---
 
-## Linting, Formatting, Security
-- **ruff** (rules: E/F/W, pyflakes/pycodestyle, and `ruff lint --select I,S,B` if configured), **black**, **isort**, **mypy**.
-- **Bandit** for basic security checks; ensure `SECURE_*` Django settings in prod.
-- **Pre-commit**: run hooks locally; CI enforces.
-
----
-
-## API Design
-- Version API under `/api/v1/`.
-- Use explicit serializers; never return raw model instances.
-- Paginate list views; filter/ordering params validated and documented.
-- OpenAPI via **drf-spectacular**; keep schema valid in CI.
+## Linting
+- Use Ruff as the linter of record: `uv run ruff check . --fix` for safe auto‑fixes.
 
 ---
 
 ## Logging & Observability
-- **structlog** or standard logging with JSON formatter. Include request id, user id, route, latency, status, error.
-- Add health checks, DB pings, and Celery beat for periodic jobs.
-- Sentry (or equivalent) configured for prod.
+- App logging: use `logging.getLogger(__name__)` in modules. Keep logs concise and actionable; include timestamp, level, module, function, and line number.
+- Handlers (prod): console for interactive use; rotating file handlers for general, errors, and request logs managed by the process manager. Retain a small number of backups.
+- Test runs: silence logging in tests to reduce noise.
+- Health endpoint: expose a lightweight unauthenticated `GET /health` that responds "ok" via middleware or a trivial view. Keep it fast and side‑effect free.
+- Background workers: enable worker health checks and periodic heartbeats; in development (DEBUG), execute tasks synchronously (no worker process).
+- Privacy: never log secrets, credentials, full tokens, or raw payloads that may include PII. Prefer redacted summaries.
 
 ---
 
+
+
 ## Git/CI
-- Conventional commits: `feat(scope): summary`, `fix`, `chore`, `refactor`, `test`, `docs`.
-- Small, focused PRs. Include test results. Avoid force pushes unless requested.
-- CI: run `ruff/black/isort/mypy/pytest`. Migrate DB in staging environments.
+- Commits: batch related changes with conventional commits: `feat(scope): summary`, `fix`, `chore`, `refactor`, `test`, `docs`.
+- CI pipeline: `lint → tests → build/package`; include coverage reporting.
 
 ---
 
 ## Agent Workflow (Always)
-1. **Clarify** uncertainties; present 2–3 options with trade-offs where relevant.
-2. **Plan** briefly and get confirmation.
-3. **Implement** minimal change first; prefer services over bloated views.
-4. **Test** locally; ensure `pytest` passes.
-5. **Document**: update README or inline docs when introducing new patterns; keep `.env.example` current.
-6. **Report**: return a concise summary + follow-up suggestion.
+1. Clarify uncertainties; propose the smallest plan that moves work forward.
+2. Implement targeted changes aligned with these patterns.
+3. Run lint, tests, and relevant commands locally (using uv).
+4. Summarize the change and suggest the next increment.
