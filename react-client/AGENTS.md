@@ -69,6 +69,7 @@ Conventions:
   displayName.
 - Styling: Tailwind utilities; tokens via CSS vars; compose with cn; avoid deeply nested selectors.
 - Whitespace: leave a blank line between sibling JSX elements ("new HTML tags") for readability.
+- Whitespace: leave a blank line between sibling consts/functions and the return block
 Example (generic component following the rules):
 ```tsx
 // app/components/<feature>/example-card.tsx
@@ -87,6 +88,8 @@ export default function ExampleCard({title, subtitle, tone = "neutral", classNam
     const label = subtitle ?? ""
     const containerClasses = cn("card p-3", className);
     const toneClass = tone === "positive" ? "text-green-400" : tone === "warning" ? "text-yellow-400" : tone === "danger" ? "text-red-400" : "text-muted-foreground";
+    // Always white-space between consts and the return block
+    
     return (
         <div className={containerClasses}>
             <div className="font-medium truncate">{title}</div>
