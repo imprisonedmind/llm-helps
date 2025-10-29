@@ -143,78 +143,78 @@ export default function ExampleCard({title, subtitle, tone = "neutral", classNam
 ```ts
 // app/lib/api-client/client.ts
 export interface ApiClientConfig {
-    url: string
+  url: string
 }
 
 export class ApiClient {
-    private static instance: ApiClient | null = null;
-    private readonly baseUrl: string;
+  private static instance: ApiClient | null = null;
+  private readonly baseUrl: string;
 
-    // session: SessionsService; // optional session holder
-    private constructor(cfg: ApiClientConfig) {
-        this.baseUrl = cfg.url.replace(/\/+$/, "");
-    }
+  // session: SessionsService; // optional session holder
+  private constructor(cfg: ApiClientConfig) {
+    this.baseUrl = cfg.url.replace(/\/+$/, "");
+  }
 
-    static getInstance(cfg?: ApiClientConfig): ApiClient {
-        if (!ApiClient.instance) {
-            if (!cfg) throw new Error("ApiClient config not provided.");
-            ApiClient.instance = new ApiClient(cfg);
-        }
-        return ApiClient.instance;
+  static getInstance(cfg?: ApiClientConfig): ApiClient {
+    if (!ApiClient.instance) {
+      if (!cfg) throw new Error("ApiClient config not provided.");
+      ApiClient.instance = new ApiClient(cfg);
     }
+    return ApiClient.instance;
+  }
 
-    private headers(): Record<string, string> {
-        return {'Content-Type': 'application/json'};
-    }
+  private headers(): Record<string, string> {
+    return {'Content-Type': 'application/json'};
+  }
 
-    private url(p: string): string {
-        return `${this.baseUrl}/${(p || '').replace(/^\/+/, '')}`
-    }
+  private url(p: string): string {
+    return `${this.baseUrl}/${(p || '').replace(/^\/+/, '')}`
+  }
 
-    async get<T = unknown>(path: string): Promise<T> {
-        const r = await fetch(this.url(path), {
-            method: 'GET',
-            headers: this.headers(),
-            credentials: 'include' as RequestCredentials
-        });
-        if (!r.ok) throw new Error(r.statusText);
-        return r.json() as Promise<T>;
-    }
+  async get<T = unknown>(path: string): Promise<T> {
+    const r = await fetch(this.url(path), {
+      method: 'GET',
+      headers: this.headers(),
+      credentials: 'include' as RequestCredentials
+    });
+    if (!r.ok) throw new Error(r.statusText);
+    return r.json() as Promise<T>;
+  }
 
-    post(path: string, body?: unknown) {
-        return fetch(this.url(path), {
-            method: 'POST',
-            headers: this.headers(),
-            credentials: 'include' as RequestCredentials,
-            body: JSON.stringify(body)
-        });
-    }
+  post(path: string, body?: unknown) {
+    return fetch(this.url(path), {
+      method: 'POST',
+      headers: this.headers(),
+      credentials: 'include' as RequestCredentials,
+      body: JSON.stringify(body)
+    });
+  }
 
-    put(path: string, body: unknown) {
-        return fetch(this.url(path), {
-            method: 'PUT',
-            headers: this.headers(),
-            credentials: 'include' as RequestCredentials,
-            body: JSON.stringify(body)
-        });
-    }
+  put(path: string, body: unknown) {
+    return fetch(this.url(path), {
+      method: 'PUT',
+      headers: this.headers(),
+      credentials: 'include' as RequestCredentials,
+      body: JSON.stringify(body)
+    });
+  }
 
-    patch(path: string, body: unknown) {
-        return fetch(this.url(path), {
-            method: 'PATCH',
-            headers: this.headers(),
-            credentials: 'include' as RequestCredentials,
-            body: JSON.stringify(body)
-        });
-    }
+  patch(path: string, body: unknown) {
+    return fetch(this.url(path), {
+      method: 'PATCH',
+      headers: this.headers(),
+      credentials: 'include' as RequestCredentials,
+      body: JSON.stringify(body)
+    });
+  }
 
-    delete(path: string) {
-        return fetch(this.url(path), {
-            method: 'DELETE',
-            headers: this.headers(),
-            credentials: 'include' as RequestCredentials
-        });
-    }
+  delete(path: string) {
+    return fetch(this.url(path), {
+      method: 'DELETE',
+      headers: this.headers(),
+      credentials: 'include' as RequestCredentials
+    });
+  }
 }
 
 export const client = ApiClient.getInstance({url: import.meta.env.API_BASE_URL});
