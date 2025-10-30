@@ -66,6 +66,10 @@ Conventions:
 - UI primitives live under app/components/ui; compose them in feature folders.
 - Use the client/service pattern under app/lib/api-client to talk to Django REST.
 
+### TypeScript Conventions
+- Avoid using TypeScript assertion syntax `as Type`. Prefer typed assignment to declare
+  intent and keep types explicit, for example: `const value: SomeType = expr`.
+
 ---
 
 ## TSX Component Generation Rules

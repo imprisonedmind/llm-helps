@@ -85,6 +85,7 @@ Conventions:
 
 ---
 
+
 ## Testing Policy
 - Runner: use Django's built-in test runner (`uv run python manage.py test`). Do not use pytest.
 - Structure: place tests under each app, e.g. `<app>/tests/` and `<app>/api/<vN>/tests/`. Management command tests live under `<app>/management/commands/tests/`.
