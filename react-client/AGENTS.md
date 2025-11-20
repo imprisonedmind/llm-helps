@@ -77,6 +77,8 @@ Conventions:
 - File naming: kebab-case for all .tsx and .ts files (e.g., `app/components/<feature>/event-card.tsx`).
 - Default export: export default FileName() at the top of the file.
 - Props: define an interface FileNameProps and type the component signature with it.
+- React 19 Compiler: assume the React 19 compiler is enabled; structure components so props/state are easily analyzable (pure, predictable).
+- Memo hooks: do not reach for `useMemo` or `useCallback`; the compiler handles memoization. If you need stable references, extract helpers or move logic up instead of using these hooks.
 - Data source: never fetch in a component; pass data via props if one level deep, or read from a provider if deeper in
   the tree.
 - Precompute values: declare consts at the top of the component using helper functions; do not call helper functions
